@@ -1,5 +1,6 @@
 package com.alibaba.ttl.threadpool.agent.internal.transformlet.impl;
 
+import com.alibaba.ttl.TransmittableThreadLocal;
 import com.alibaba.ttl.threadpool.agent.internal.logging.Logger;
 import com.alibaba.ttl.threadpool.agent.internal.transformlet.JavassistTransformlet;
 import javassist.*;
@@ -55,10 +56,12 @@ public class TtlTimerTaskTransformlet implements JavassistTransformlet {
     private void updateTimerTaskClass(final CtClass clazz) throws CannotCompileException, NotFoundException {
         // add new field
         final String className = clazz.getName();
+        // use getCanonicalName method for inner class
+        final String transmitterClassName = TransmittableThreadLocal.Transmitter.class.getCanonicalName();
 
         final String capturedFieldName = "captured$field$add$by$ttl";
         final CtField capturedField = CtField.make("private final Object " + capturedFieldName + ";", clazz);
-        clazz.addField(capturedField, "com.alibaba.ttl.TransmittableThreadLocal.Transmitter.capture();");
+        clazz.addField(capturedField, transmitterClassName + ".capture();");
         logger.info("add new field " + capturedFieldName + " to class " + className);
 
         final CtMethod runMethod = clazz.getDeclaredMethod(RUN_METHOD_NAME, new CtClass[0]);
@@ -71,11 +74,11 @@ public class TtlTimerTaskTransformlet implements JavassistTransformlet {
 
         // set new run method implementation
         final String code = "{\n" +
-                "Object backup = com.alibaba.ttl.TransmittableThreadLocal.Transmitter.replay(" + capturedFieldName + ");\n" +
+                "Object backup = " + transmitterClassName + ".replay(" + capturedFieldName + ");\n" +
                 "try {\n" +
                 "    return " + original_run_method_rename + "($$);\n" +
                 "} finally {\n" +
-                "    com.alibaba.ttl.TransmittableThreadLocal.Transmitter.restore(backup);\n" +
+                "    " + transmitterClassName + ".restore(backup);\n" +
                 "}\n" + "}";
         new_runMethod.setBody(code);
         clazz.addMethod(new_runMethod);

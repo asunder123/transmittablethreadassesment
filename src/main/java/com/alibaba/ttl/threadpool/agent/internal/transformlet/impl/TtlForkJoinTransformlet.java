@@ -1,5 +1,8 @@
 package com.alibaba.ttl.threadpool.agent.internal.transformlet.impl;
 
+import com.alibaba.ttl.TransmittableThreadLocal;
+import com.alibaba.ttl.TtlRecursiveAction;
+import com.alibaba.ttl.TtlRecursiveTask;
 import com.alibaba.ttl.threadpool.agent.internal.logging.Logger;
 import com.alibaba.ttl.threadpool.agent.internal.transformlet.JavassistTransformlet;
 import javassist.*;
@@ -22,8 +25,8 @@ import static com.alibaba.ttl.threadpool.agent.internal.transformlet.impl.Utils.
 public class TtlForkJoinTransformlet implements JavassistTransformlet {
     private static final Logger logger = Logger.getLogger(TtlForkJoinTransformlet.class);
     private static final String FORK_JOIN_TASK_CLASS_NAME = "java.util.concurrent.ForkJoinTask";
-    private static final String TTL_RECURSIVE_ACTION_CLASS_NAME = "com.alibaba.ttl.TtlRecursiveAction";
-    private static final String TTL_RECURSIVE_TASK_CLASS_NAME = "com.alibaba.ttl.TtlRecursiveTask";
+    private static final String TTL_RECURSIVE_ACTION_CLASS_NAME = TtlRecursiveAction.class.getName();
+    private static final String TTL_RECURSIVE_TASK_CLASS_NAME = TtlRecursiveTask.class.getName();
 
     @Override
     public byte[] doTransform(String className, byte[] classFileBuffer, ClassLoader loader) throws IOException, NotFoundException, CannotCompileException {
@@ -38,10 +41,12 @@ public class TtlForkJoinTransformlet implements JavassistTransformlet {
     private void updateForkJoinTaskClass(final CtClass clazz) throws CannotCompileException, NotFoundException {
         // add new field
         final String className = clazz.getName();
+        // use getCanonicalName method for inner class
+        final String transmitterClassName = TransmittableThreadLocal.Transmitter.class.getCanonicalName();
 
         final String capturedFieldName = "captured$field$add$by$ttl";
         final CtField capturedField = CtField.make("private final Object " + capturedFieldName + ";", clazz);
-        clazz.addField(capturedField, "com.alibaba.ttl.TransmittableThreadLocal.Transmitter.capture();");
+        clazz.addField(capturedField, transmitterClassName + ".capture();");
         logger.info("add new field " + capturedFieldName + " to class " + className);
 
         final String doExec_methodName = "doExec";
@@ -59,11 +64,11 @@ public class TtlForkJoinTransformlet implements JavassistTransformlet {
                 "if (this instanceof " + TTL_RECURSIVE_ACTION_CLASS_NAME + " || this instanceof " + TTL_RECURSIVE_TASK_CLASS_NAME + ") {\n" +
                 "    return " + original_doExec_method_rename + "($$);\n" +
                 "}\n" +
-                "Object backup = com.alibaba.ttl.TransmittableThreadLocal.Transmitter.replay(" + capturedFieldName + ");\n" +
+                "Object backup = " + transmitterClassName + ".replay(" + capturedFieldName + ");\n" +
                 "try {\n" +
                 "    return " + original_doExec_method_rename + "($$);\n" +
                 "} finally {\n" +
-                "    com.alibaba.ttl.TransmittableThreadLocal.Transmitter.restore(backup);\n" +
+                "    " + transmitterClassName + ".restore(backup);\n" +
                 "}\n" + "}";
         new_doExecMethod.setBody(code);
         clazz.addMethod(new_doExecMethod);

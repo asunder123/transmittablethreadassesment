@@ -1,5 +1,7 @@
 package com.alibaba.ttl.threadpool.agent.internal.transformlet.impl;
 
+import com.alibaba.ttl.TtlCallable;
+import com.alibaba.ttl.TtlRunnable;
 import com.alibaba.ttl.threadpool.agent.internal.logging.Logger;
 import com.alibaba.ttl.threadpool.agent.internal.transformlet.JavassistTransformlet;
 import javassist.CannotCompileException;
@@ -38,8 +40,8 @@ public class TtlExecutorTransformlet implements JavassistTransformlet {
         EXECUTOR_CLASS_NAMES.add("java.util.concurrent.ThreadPoolExecutor");
         EXECUTOR_CLASS_NAMES.add("java.util.concurrent.ScheduledThreadPoolExecutor");
 
-        PARAM_TYPE_NAME_TO_DECORATE_METHOD_CLASS.put("java.lang.Runnable", "com.alibaba.ttl.TtlRunnable");
-        PARAM_TYPE_NAME_TO_DECORATE_METHOD_CLASS.put("java.util.concurrent.Callable", "com.alibaba.ttl.TtlCallable");
+        PARAM_TYPE_NAME_TO_DECORATE_METHOD_CLASS.put("java.lang.Runnable", TtlRunnable.class.getName());
+        PARAM_TYPE_NAME_TO_DECORATE_METHOD_CLASS.put("java.util.concurrent.Callable", TtlCallable.class.getName());
     }
 
     @Override
