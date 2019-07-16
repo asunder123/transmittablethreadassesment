@@ -15,6 +15,10 @@ addons:
 jdk:
   - oraclejdk8
 
+branches:
+  except:
+    - appveyor
+
 before_install:
   # workaroud for "buffer overflow detected" problem of openjdk:
   #     https://github.com/travis-ci/travis-ci/issues/5227
